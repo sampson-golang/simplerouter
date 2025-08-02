@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+get_full_path() {
+  if [[ ! -z "$(which realpath)" ]]; then
+    realpath "$1"
+  elif [[ ! -z "$(which greadlink)" ]]; then
+    greadlink -f "$1"
+  elif [[ ! -z "$(which perl)" ]]; then
+    perl -MCwd -le 'print Cwd::abs_path shift' "$1"
+  elif [[ ! -z "$(which python)" ]]; then
+    python -c 'import os, sys; print os.path.realpath(sys.argv[1])' "$1"
+  else
+    echo "$1"
+  fi
+}
+
+SCRIPT_PATH="$(get_full_path "$0")"
+SCRIPT_ROOT="$(dirname "${SCRIPT_PATH}")"
+APP_ROOT="$(get_full_path "${SCRIPT_ROOT}/../")"
+
+pushd "${APP_ROOT}"
+trap popd EXIT
+
+rm -f .git/hooks/pre-commit
+cp -a bin/hooks/pre-commit .git/hooks/pre-commit
+
+
+for file in bin/hooks/*; do
+  filename=$(basename "$file")
+  if [[ "$filename" == "pre-commit" ]]; then
+    continue
+  fi
+  ln -s -f "../../bin/hooks/$filename" ".git/hooks/$filename"
+  if ! grep -q $filename .git/hooks/pre-commit; then
+    echo ".git/hooks/$filename" >> .git/hooks/pre-commit.sample
+  fi
+done

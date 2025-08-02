@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [[ -z "${1}" ]]; then
+  exec go test -v -failfast ./...
+else
+  exec go test -v -failfast "$@"
+fi

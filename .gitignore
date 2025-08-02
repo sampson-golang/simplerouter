@@ -1,0 +1,26 @@
+# Logs
+logs
+*.log
+
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+tmp/*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.env
+.env*
+
+# compiled files
+simplerouter

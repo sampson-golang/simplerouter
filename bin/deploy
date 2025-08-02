@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+bin/test || { echo "Tests failed, refusing to deploy" && exit 1; }
+
+# Extract version from version.go
+VERSION=$(grep 'Version = ' version.go | sed 's/.*"\(.*\)".*/\1/')
+
+# Print the current version
+echo $VERSION
+
+# Create git tags
+if [ -z "$VERSION" ]; then
+	echo "No version found"
+	exit 1
+fi
+
+git fetch --tags
+
+git tag -a "v$VERSION" -m "Version $VERSION" || { echo "Failed to create tag" && exit 1; }
+git tag -a "$VERSION" -m "Version $VERSION" || { echo "Failed to create tag" && exit 1; }
+
+# Push tags
+git push origin "v$VERSION" "$VERSION"
