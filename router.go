@@ -16,6 +16,34 @@ type (
 	}
 )
 
+type statusInterceptor struct {
+	http.ResponseWriter
+	originalPath string
+	Status int
+}
+
+func (wrapper *statusInterceptor) WriteHeader(code int) {
+	if code == http.StatusMovedPermanently {
+		location := wrapper.Header().Get("Location")
+		if location == wrapper.originalPath + "/" {
+			wrapper.Status = http.StatusTemporaryRedirect
+			wrapper.ResponseWriter.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+	}
+	wrapper.ResponseWriter.WriteHeader(code)
+}
+
+func toStatusInterceptor(w http.ResponseWriter, r *http.Request) *statusInterceptor {
+	if si, ok := w.(*statusInterceptor); ok {
+		return si
+	}
+	return &statusInterceptor{
+		ResponseWriter: w,
+		originalPath:   r.URL.Path,
+	}
+}
+
 type muxWrapper struct {
 	*http.ServeMux
 	httpHandler     middleware
@@ -64,6 +92,7 @@ func (m *muxWrapper) HandleFunc(pattern string, handler http.HandlerFunc) {
 
 func (m *muxWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handling Path: ", r.URL.Path)
+	w = toStatusInterceptor(w, r)
 
 	if m.notFoundHandler != nil {
 		_, matchedPattern := m.ServeMux.Handler(r)
@@ -194,6 +223,11 @@ func (r *Router) Options(path string, fn http.HandlerFunc, chain ...middleware) 
 
 func (r *Router) Any(path string, fn http.HandlerFunc, chain ...middleware) {
 	r.mux.Handle(path, r.wrap(fn, chain))
+}
+
+// allow dynamic methods
+func (r *Router) Handle(method, path string, fn http.HandlerFunc, chain ...middleware) {
+	r.handle(method, path, fn, chain)
 }
 
 func (r *Router) NotFound(writer http.ResponseWriter, req *http.Request) {

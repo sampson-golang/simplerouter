@@ -1153,3 +1153,75 @@ func TestRouterSetHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestRedirectFromRouteToRouteSlash(t *testing.T) {
+	t.Run("intercepts the automatic 301 from net/http", func(t *testing.T) {
+		methods := map[string]func(*Router, string, http.HandlerFunc, ...middleware){
+			"GET":     (*Router).Get,
+			"POST":    (*Router).Post,
+			"PUT":     (*Router).Put,
+			"DELETE":  (*Router).Delete,
+			"HEAD":    (*Router).Head,
+			"OPTIONS": (*Router).Options,
+		}
+
+		for methodName, methodFunc := range methods {
+			t.Run(methodName, func(t *testing.T) {
+				router := NewRouter()
+
+				methodFunc(router, "/route/{$}", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(200)
+					w.Write([]byte("success"))
+				})
+
+				req := httptest.NewRequest(methodName, "/route", nil)
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
+
+				// Check that we get a 307 status code
+				if w.Code != http.StatusTemporaryRedirect {
+					t.Errorf("Expected status %d, got %d", http.StatusTemporaryRedirect, w.Code)
+				}
+
+				// Check that Location header is set correctly
+				location := w.Header().Get("Location")
+				expectedLocation := "/route/"
+				if location != expectedLocation {
+					t.Errorf("Expected Location header %q, got %q", expectedLocation, location)
+				}
+
+				t.Run("with nested routes", func(t *testing.T) {
+					router.Route("/nested/", func(r *Router) {
+						methodFunc(r, "/route/", func(w http.ResponseWriter, r *http.Request) {
+							w.WriteHeader(200)
+							w.Write([]byte("nested success"))
+						})
+
+						methodFunc(r, "/{$}", func(w http.ResponseWriter, r *http.Request) {
+							w.WriteHeader(200)
+							w.Write([]byte("nested root success"))
+						})
+					})
+
+					for _, path := range []string{"/nested/route", "/nested"} {
+						req = httptest.NewRequest(methodName, path, nil)
+						w = httptest.NewRecorder()
+						router.ServeHTTP(w, req)
+
+						// Check that we get a 307 status code
+						if w.Code != http.StatusTemporaryRedirect {
+							t.Errorf("Expected status %d, got %d", http.StatusTemporaryRedirect, w.Code)
+						}
+
+						// Check that Location header is set correctly
+						location := w.Header().Get("Location")
+						expectedLocation := path + "/"
+						if location != expectedLocation {
+							t.Errorf("Expected Location header %q, got %q", expectedLocation, location)
+						}
+					}
+				})
+			})
+		}
+  })
+}
