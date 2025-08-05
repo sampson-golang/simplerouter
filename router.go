@@ -14,34 +14,6 @@ type (
 	}
 )
 
-type statusInterceptor struct {
-	http.ResponseWriter
-	originalPath string
-	Status int
-}
-
-func (wrapper *statusInterceptor) WriteHeader(code int) {
-	if code == http.StatusMovedPermanently {
-		location := wrapper.Header().Get("Location")
-		if location == wrapper.originalPath + "/" {
-			wrapper.Status = http.StatusTemporaryRedirect
-			wrapper.ResponseWriter.WriteHeader(http.StatusTemporaryRedirect)
-			return
-		}
-	}
-	wrapper.ResponseWriter.WriteHeader(code)
-}
-
-func toStatusInterceptor(w http.ResponseWriter, r *http.Request) *statusInterceptor {
-	if si, ok := w.(*statusInterceptor); ok {
-		return si
-	}
-	return &statusInterceptor{
-		ResponseWriter: w,
-		originalPath:   r.URL.Path,
-	}
-}
-
 type muxWrapper struct {
 	*http.ServeMux
 	httpHandler     middleware
