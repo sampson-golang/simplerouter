@@ -1,8 +1,6 @@
 package simplerouter
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"slices"
 	"strings"
@@ -66,14 +64,14 @@ func (m *muxWrapper) fullPattern(pattern string) string {
 
 func (m *muxWrapper) Handle(pattern string, handler http.Handler) {
 	pattern = m.fullPattern(pattern)
-	log.Println("Handle", pattern)
+	logger.Debug("Handle", "pattern", pattern)
 	m.ServeMux.Handle(pattern, handler)
 
 	if strings.Contains(pattern, "-") {
-		log.Println("Handle -", strings.ReplaceAll(pattern, "-", "_"))
+		logger.Debug("Handle -", "pattern", strings.ReplaceAll(pattern, "-", "_"))
 		m.ServeMux.Handle(strings.ReplaceAll(pattern, "-", "_"), handler)
 	} else if strings.Contains(pattern, "_") {
-		log.Println("Handle _", strings.ReplaceAll(pattern, "_", "-"))
+		logger.Debug("Handle _", "pattern", strings.ReplaceAll(pattern, "_", "-"))
 		m.ServeMux.Handle(strings.ReplaceAll(pattern, "_", "-"), handler)
 	}
 }
@@ -91,7 +89,7 @@ func (m *muxWrapper) HandleFunc(pattern string, handler http.HandlerFunc) {
 }
 
 func (m *muxWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Handling Path: ", r.URL.Path)
+	logger.Debug("Handling Path", "path", r.URL.Path)
 	w = toStatusInterceptor(w, r)
 
 	if m.notFoundHandler != nil {
